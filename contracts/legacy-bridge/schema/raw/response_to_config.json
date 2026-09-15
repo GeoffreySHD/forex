@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ConfigResponse",
+  "type": "object",
+  "required": [
+    "admin",
+    "global_cap",
+    "open",
+    "per_address_cap",
+    "sink_address",
+    "vesting_days"
+  ],
+  "properties": {
+    "admin": {
+      "type": "string"
+    },
+    "global_cap": {
+      "type": "string"
+    },
+    "open": {
+      "type": "boolean"
+    },
+    "per_address_cap": {
+      "type": "string"
+    },
+    "sink_address": {
+      "type": "string"
+    },
+    "vesting_days": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false
+}

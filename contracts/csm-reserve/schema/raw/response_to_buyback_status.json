@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BuybackStatus",
+  "description": "Buyback state machine states (public diagnostics requirement).",
+  "oneOf": [
+    {
+      "description": "Reserve holds fees but no buyback is in flight.",
+      "type": "string",
+      "enum": [
+        "idle"
+      ]
+    },
+    {
+      "description": "A buyback message was accepted and routed to the DEX router.",
+      "type": "string",
+      "enum": [
+        "pending"
+      ]
+    },
+    {
+      "description": "Route failed (slippage or execution); retry allowed.",
+      "type": "object",
+      "required": [
+        "failed"
+      ],
+      "properties": {
+        "failed": {
+          "type": "object",
+          "required": [
+            "reason"
+          ],
+          "properties": {
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Swapped; proceeds sit in the LUNC vault.",
+      "type": "string",
+      "enum": [
+        "completed"
+      ]
+    }
+  ]
+}

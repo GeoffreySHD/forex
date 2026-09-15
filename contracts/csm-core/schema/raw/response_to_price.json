@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PriceResponse",
+  "type": "object",
+  "required": [
+    "fresh",
+    "quote",
+    "rate"
+  ],
+  "properties": {
+    "fresh": {
+      "type": "boolean"
+    },
+    "quote": {
+      "$ref": "#/definitions/CollateralType"
+    },
+    "rate": {
+      "description": "Collateral units per 1 EUTC (1.0 for EURC; EUR/USD for USDC). Mint: EUTC = deposit / rate x (1 - premium); Redeem: payout = EUTC x rate x (1 - fee).",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "CollateralType": {
+      "description": "Collateral types accepted for EUTC minting (spec: EURC primary at 1:1, USDC with a 0.5% premium).",
+      "type": "string",
+      "enum": [
+        "eurc",
+        "usdc"
+      ]
+    }
+  }
+}

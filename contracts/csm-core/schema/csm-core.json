@@ -1,0 +1,1246 @@
+{
+  "contract_name": "csm-core",
+  "contract_version": "0.1.0",
+  "idl_version": "1.0.0",
+  "instantiate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "InstantiateMsg",
+    "type": "object",
+    "required": [
+      "admin",
+      "eutc_token",
+      "reserve",
+      "vault"
+    ],
+    "properties": {
+      "admin": {
+        "type": "string"
+      },
+      "eutc_token": {
+        "description": "cw20 address of EUTC; the deployer registers csm-core as minter.",
+        "type": "string"
+      },
+      "oracle": {
+        "description": "Feeder oracle adapter (fallback / override). Mints fail closed until wired when `oracle_mode` is `AdapterOnly`.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "oracle_mode": {
+        "description": "Price-source selection; defaults to `ConsensusPrimary` (chain oracle ballot rates via the terra wasmbinding).",
+        "anyOf": [
+          {
+            "$ref": "#/definitions/OracleMode"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "params": {
+        "description": "Defaults to the spec values when omitted.",
+        "anyOf": [
+          {
+            "$ref": "#/definitions/Params"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "reserve": {
+        "description": "Secondary reserve contract receiving all fees.",
+        "type": "string"
+      },
+      "vault": {
+        "description": "Primary collateral custody contract.",
+        "type": "string"
+      }
+    },
+    "additionalProperties": false,
+    "definitions": {
+      "OracleMode": {
+        "description": "Price-source selection. `ConsensusPrimary` consumes the chain oracle's slashing-backed ballot rates via the terra wasmbinding (`ExchangeRates` custom query) and falls back to the adapter contract on failure; `AdapterOnly` uses only the feeder adapter (used by tests and for quotes outside the ballot denom set).",
+        "type": "string",
+        "enum": [
+          "consensus_primary",
+          "adapter_only"
+        ]
+      },
+      "Params": {
+        "description": "Protocol parameters. Fee/cap values are in basis points (1.5% = 150).",
+        "type": "object",
+        "required": [
+          "daily_mint_cap_bps",
+          "daily_redeem_cap_bps",
+          "flash_fee_bps",
+          "flash_fee_window_blocks",
+          "max_dynamic_spread_bps",
+          "min_daily_mint_floor",
+          "min_primary_ratio_bps",
+          "mint_fee_bps",
+          "oracle_min_interval_secs",
+          "oracle_stale_secs",
+          "per_addr_redeem_cap_bps",
+          "rebalance_threshold_bps",
+          "redeem_fee_bps",
+          "usdc_premium_bps"
+        ],
+        "properties": {
+          "daily_mint_cap_bps": {
+            "description": "Maximum new supply mintable per day, per collateral (20% = 2000). Bounds same-day mint→dump velocity.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "daily_redeem_cap_bps": {
+            "description": "Maximum share of total EUTC supply redeemable per day (10% = 1000).",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "flash_fee_bps": {
+            "description": "Extra fee applied when redeeming EUTC minted to the sender within `flash_fee_window_blocks` (anti wash mint→dump loop).",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "flash_fee_window_blocks": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "max_dynamic_spread_bps": {
+            "description": "Dynamic redeem-spread headroom: up to this many bps are added to the redeem fee linearly as the daily window fills (0..=10_000 bps of utilization → 0..=max_dynamic_spread_bps added).",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "min_daily_mint_floor": {
+            "description": "Absolute floor on the daily mint allowance per collateral, in collateral micro-units. The percentage cap is relative to circulating supply, which is zero at protocol genesis — without this floor the first mints would be impossible (cap = supply × 0). Bootstrap-only in practice: the percentage cap overtakes it once supply grows.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "min_primary_ratio_bps": {
+            "description": "Mints revert while aggregate primary collateral ratio is below this (95% = 9_500). The solvency governor (anti-dump L3). The floor must sit BELOW the steady-state ratio: the 1.5% mint fee skims the EURC ratio to ~98.5% by design (the 0.5% USDC premium lifts that leg to ~104%), so a 100% floor would halt all normal operation. 95% only trips on abnormal drain — extraction beyond fees approaching 4% of backing.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "mint_fee_bps": {
+            "description": "Fee taken in the collateral used, on mint.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "oracle_min_interval_secs": {
+            "description": "Minimum seconds between oracle price updates (spec: 30s refresh).",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "oracle_stale_secs": {
+            "description": "Price older than this is treated as stale; mints fail closed.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "per_addr_redeem_cap_bps": {
+            "description": "Per-address share of supply redeemable per day (1% = 100). Bounds one whale's share of the daily window.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "rebalance_threshold_bps": {
+            "description": "USDC/EURC value differential triggering reserve rebalancing (5% = 500). RESERVED, not yet enforced (see ARCHITECTURE §5).",
+            "deprecated": true,
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "redeem_fee_bps": {
+            "description": "Fee taken in the collateral withdrawn, on redemption.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "usdc_premium_bps": {
+            "description": "USDC mint premium protecting against EUR/USD moves and DEX spread.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "execute": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ExecuteMsg",
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "receive"
+        ],
+        "properties": {
+          "receive": {
+            "$ref": "#/definitions/Cw20ReceiveMsg"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin kill switch: pause or resume mint/redemption independently.",
+        "type": "object",
+        "required": [
+          "pause"
+        ],
+        "properties": {
+          "pause": {
+            "type": "object",
+            "required": [
+              "mint",
+              "redeem"
+            ],
+            "properties": {
+              "mint": {
+                "type": "boolean"
+              },
+              "redeem": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin parameter update.",
+        "type": "object",
+        "required": [
+          "set_params"
+        ],
+        "properties": {
+          "set_params": {
+            "type": "object",
+            "required": [
+              "params"
+            ],
+            "properties": {
+              "params": {
+                "$ref": "#/definitions/Params"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin: register or replace the cw20 contract for a collateral type.",
+        "type": "object",
+        "required": [
+          "register_collateral"
+        ],
+        "properties": {
+          "register_collateral": {
+            "type": "object",
+            "required": [
+              "collateral_type",
+              "token"
+            ],
+            "properties": {
+              "collateral_type": {
+                "$ref": "#/definitions/CollateralType"
+              },
+              "token": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin: rebind the EUTC cw20 token (deployment wiring; breaks the EUTC-needs-core-minter / core-needs-EUTC-address cycle).",
+        "type": "object",
+        "required": [
+          "set_eutc"
+        ],
+        "properties": {
+          "set_eutc": {
+            "type": "object",
+            "required": [
+              "eutc"
+            ],
+            "properties": {
+              "eutc": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin: rewire the vault.",
+        "type": "object",
+        "required": [
+          "set_vault"
+        ],
+        "properties": {
+          "set_vault": {
+            "type": "object",
+            "required": [
+              "vault"
+            ],
+            "properties": {
+              "vault": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin: rewire the secondary reserve.",
+        "type": "object",
+        "required": [
+          "set_reserve"
+        ],
+        "properties": {
+          "set_reserve": {
+            "type": "object",
+            "required": [
+              "reserve"
+            ],
+            "properties": {
+              "reserve": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin: rewire or remove the oracle adapter.",
+        "type": "object",
+        "required": [
+          "set_oracle"
+        ],
+        "properties": {
+          "set_oracle": {
+            "type": "object",
+            "properties": {
+              "oracle": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin: switch price source (consensus primary vs adapter only).",
+        "type": "object",
+        "required": [
+          "set_oracle_mode"
+        ],
+        "properties": {
+          "set_oracle_mode": {
+            "type": "object",
+            "required": [
+              "mode"
+            ],
+            "properties": {
+              "mode": {
+                "$ref": "#/definitions/OracleMode"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin: transfer admin authority (governance/multisig handover).",
+        "type": "object",
+        "required": [
+          "set_admin"
+        ],
+        "properties": {
+          "set_admin": {
+            "type": "object",
+            "required": [
+              "admin"
+            ],
+            "properties": {
+              "admin": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "Binary": {
+        "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+        "type": "string"
+      },
+      "CollateralType": {
+        "description": "Collateral types accepted for EUTC minting (spec: EURC primary at 1:1, USDC with a 0.5% premium).",
+        "type": "string",
+        "enum": [
+          "eurc",
+          "usdc"
+        ]
+      },
+      "Cw20ReceiveMsg": {
+        "description": "Cw20ReceiveMsg should be de/serialized under `Receive()` variant in a ExecuteMsg",
+        "type": "object",
+        "required": [
+          "amount",
+          "msg",
+          "sender"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "msg": {
+            "$ref": "#/definitions/Binary"
+          },
+          "sender": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "OracleMode": {
+        "description": "Price-source selection. `ConsensusPrimary` consumes the chain oracle's slashing-backed ballot rates via the terra wasmbinding (`ExchangeRates` custom query) and falls back to the adapter contract on failure; `AdapterOnly` uses only the feeder adapter (used by tests and for quotes outside the ballot denom set).",
+        "type": "string",
+        "enum": [
+          "consensus_primary",
+          "adapter_only"
+        ]
+      },
+      "Params": {
+        "description": "Protocol parameters. Fee/cap values are in basis points (1.5% = 150).",
+        "type": "object",
+        "required": [
+          "daily_mint_cap_bps",
+          "daily_redeem_cap_bps",
+          "flash_fee_bps",
+          "flash_fee_window_blocks",
+          "max_dynamic_spread_bps",
+          "min_daily_mint_floor",
+          "min_primary_ratio_bps",
+          "mint_fee_bps",
+          "oracle_min_interval_secs",
+          "oracle_stale_secs",
+          "per_addr_redeem_cap_bps",
+          "rebalance_threshold_bps",
+          "redeem_fee_bps",
+          "usdc_premium_bps"
+        ],
+        "properties": {
+          "daily_mint_cap_bps": {
+            "description": "Maximum new supply mintable per day, per collateral (20% = 2000). Bounds same-day mint→dump velocity.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "daily_redeem_cap_bps": {
+            "description": "Maximum share of total EUTC supply redeemable per day (10% = 1000).",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "flash_fee_bps": {
+            "description": "Extra fee applied when redeeming EUTC minted to the sender within `flash_fee_window_blocks` (anti wash mint→dump loop).",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "flash_fee_window_blocks": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "max_dynamic_spread_bps": {
+            "description": "Dynamic redeem-spread headroom: up to this many bps are added to the redeem fee linearly as the daily window fills (0..=10_000 bps of utilization → 0..=max_dynamic_spread_bps added).",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "min_daily_mint_floor": {
+            "description": "Absolute floor on the daily mint allowance per collateral, in collateral micro-units. The percentage cap is relative to circulating supply, which is zero at protocol genesis — without this floor the first mints would be impossible (cap = supply × 0). Bootstrap-only in practice: the percentage cap overtakes it once supply grows.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "min_primary_ratio_bps": {
+            "description": "Mints revert while aggregate primary collateral ratio is below this (95% = 9_500). The solvency governor (anti-dump L3). The floor must sit BELOW the steady-state ratio: the 1.5% mint fee skims the EURC ratio to ~98.5% by design (the 0.5% USDC premium lifts that leg to ~104%), so a 100% floor would halt all normal operation. 95% only trips on abnormal drain — extraction beyond fees approaching 4% of backing.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "mint_fee_bps": {
+            "description": "Fee taken in the collateral used, on mint.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "oracle_min_interval_secs": {
+            "description": "Minimum seconds between oracle price updates (spec: 30s refresh).",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "oracle_stale_secs": {
+            "description": "Price older than this is treated as stale; mints fail closed.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "per_addr_redeem_cap_bps": {
+            "description": "Per-address share of supply redeemable per day (1% = 100). Bounds one whale's share of the daily window.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "rebalance_threshold_bps": {
+            "description": "USDC/EURC value differential triggering reserve rebalancing (5% = 500). RESERVED, not yet enforced (see ARCHITECTURE §5).",
+            "deprecated": true,
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "redeem_fee_bps": {
+            "description": "Fee taken in the collateral withdrawn, on redemption.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "usdc_premium_bps": {
+            "description": "USDC mint premium protecting against EUR/USD moves and DEX spread.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        },
+        "additionalProperties": false
+      },
+      "Uint128": {
+        "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+        "type": "string"
+      }
+    }
+  },
+  "query": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "QueryMsg",
+    "description": "Messages csm-core accepts. Mint/Redeem arrive as cw20 `Send` hooks from a registered collateral token (see `csm-core::msg::HookMsg`); admin messages are direct and gated on the module admin (governance or multisig).",
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "config"
+        ],
+        "properties": {
+          "config": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "price"
+        ],
+        "properties": {
+          "price": {
+            "type": "object",
+            "required": [
+              "quote"
+            ],
+            "properties": {
+              "quote": {
+                "$ref": "#/definitions/CollateralType"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "protocol_info"
+        ],
+        "properties": {
+          "protocol_info": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "CollateralType": {
+        "description": "Collateral types accepted for EUTC minting (spec: EURC primary at 1:1, USDC with a 0.5% premium).",
+        "type": "string",
+        "enum": [
+          "eurc",
+          "usdc"
+        ]
+      }
+    }
+  },
+  "migrate": null,
+  "sudo": null,
+  "responses": {
+    "config": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ConfigResponse",
+      "type": "object",
+      "required": [
+        "admin",
+        "collateral_tokens",
+        "eutc_token",
+        "oracle_mode",
+        "reserve",
+        "vault"
+      ],
+      "properties": {
+        "admin": {
+          "type": "string"
+        },
+        "collateral_tokens": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": [
+              {
+                "$ref": "#/definitions/CollateralType"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "maxItems": 2,
+            "minItems": 2
+          }
+        },
+        "eutc_token": {
+          "type": "string"
+        },
+        "oracle": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "oracle_mode": {
+          "$ref": "#/definitions/OracleMode"
+        },
+        "reserve": {
+          "type": "string"
+        },
+        "vault": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "CollateralType": {
+          "description": "Collateral types accepted for EUTC minting (spec: EURC primary at 1:1, USDC with a 0.5% premium).",
+          "type": "string",
+          "enum": [
+            "eurc",
+            "usdc"
+          ]
+        },
+        "OracleMode": {
+          "description": "Price-source selection. `ConsensusPrimary` consumes the chain oracle's slashing-backed ballot rates via the terra wasmbinding (`ExchangeRates` custom query) and falls back to the adapter contract on failure; `AdapterOnly` uses only the feeder adapter (used by tests and for quotes outside the ballot denom set).",
+          "type": "string",
+          "enum": [
+            "consensus_primary",
+            "adapter_only"
+          ]
+        }
+      }
+    },
+    "price": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PriceResponse",
+      "type": "object",
+      "required": [
+        "fresh",
+        "quote",
+        "rate"
+      ],
+      "properties": {
+        "fresh": {
+          "type": "boolean"
+        },
+        "quote": {
+          "$ref": "#/definitions/CollateralType"
+        },
+        "rate": {
+          "description": "Collateral units per 1 EUTC (1.0 for EURC; EUR/USD for USDC). Mint: EUTC = deposit / rate x (1 - premium); Redeem: payout = EUTC x rate x (1 - fee).",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "CollateralType": {
+          "description": "Collateral types accepted for EUTC minting (spec: EURC primary at 1:1, USDC with a 0.5% premium).",
+          "type": "string",
+          "enum": [
+            "eurc",
+            "usdc"
+          ]
+        }
+      }
+    },
+    "protocol_info": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ProtocolInfo",
+      "description": "Public diagnostics answer. Maps 1:1 to the spec's required diagnostics list (total supply comes from the bank module).",
+      "type": "object",
+      "required": [
+        "collateral",
+        "collateral_ratio_pct",
+        "daily_redeem_remaining",
+        "eutc_denom",
+        "eutc_minted_total",
+        "eutc_total_supply",
+        "oracle_healthy",
+        "params",
+        "redeem_window_day",
+        "reserve_lunc_vault",
+        "secondary_reserve",
+        "status"
+      ],
+      "properties": {
+        "collateral": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": [
+              {
+                "$ref": "#/definitions/CollateralType"
+              },
+              {
+                "$ref": "#/definitions/CollateralState"
+              }
+            ],
+            "maxItems": 2,
+            "minItems": 2
+          }
+        },
+        "collateral_ratio_pct": {
+          "description": "primary_balance / eutc_minted, in percent (x100), 0 when nothing minted.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
+        },
+        "daily_redeem_remaining": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "eutc_denom": {
+          "type": "string"
+        },
+        "eutc_minted_total": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "eutc_total_supply": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "oracle_healthy": {
+          "type": "boolean"
+        },
+        "params": {
+          "$ref": "#/definitions/Params"
+        },
+        "redeem_window_day": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "reserve_lunc_vault": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "secondary_reserve": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": [
+              {
+                "$ref": "#/definitions/CollateralType"
+              },
+              {
+                "$ref": "#/definitions/Uint128"
+              }
+            ],
+            "maxItems": 2,
+            "minItems": 2
+          }
+        },
+        "status": {
+          "$ref": "#/definitions/ProtocolStatus"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "CollateralState": {
+          "description": "Per-collateral accounting layer. The spec requires these to stay independently verifiable, never collapsed into one balance.",
+          "type": "object",
+          "required": [
+            "collateral_returned",
+            "eutc_minted",
+            "fees_collected",
+            "primary_balance"
+          ],
+          "properties": {
+            "collateral_returned": {
+              "description": "Lifetime collateral returned to redeemers.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                }
+              ]
+            },
+            "eutc_minted": {
+              "description": "EUTC minted against this collateral type, gross of premiums.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                }
+              ]
+            },
+            "fees_collected": {
+              "description": "Fees routed to the secondary reserve from this collateral type.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                }
+              ]
+            },
+            "primary_balance": {
+              "description": "Collateral currently custodied by the module (primary collateral).",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "CollateralType": {
+          "description": "Collateral types accepted for EUTC minting (spec: EURC primary at 1:1, USDC with a 0.5% premium).",
+          "type": "string",
+          "enum": [
+            "eurc",
+            "usdc"
+          ]
+        },
+        "Params": {
+          "description": "Protocol parameters. Fee/cap values are in basis points (1.5% = 150).",
+          "type": "object",
+          "required": [
+            "daily_mint_cap_bps",
+            "daily_redeem_cap_bps",
+            "flash_fee_bps",
+            "flash_fee_window_blocks",
+            "max_dynamic_spread_bps",
+            "min_daily_mint_floor",
+            "min_primary_ratio_bps",
+            "mint_fee_bps",
+            "oracle_min_interval_secs",
+            "oracle_stale_secs",
+            "per_addr_redeem_cap_bps",
+            "rebalance_threshold_bps",
+            "redeem_fee_bps",
+            "usdc_premium_bps"
+          ],
+          "properties": {
+            "daily_mint_cap_bps": {
+              "description": "Maximum new supply mintable per day, per collateral (20% = 2000). Bounds same-day mint→dump velocity.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "daily_redeem_cap_bps": {
+              "description": "Maximum share of total EUTC supply redeemable per day (10% = 1000).",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "flash_fee_bps": {
+              "description": "Extra fee applied when redeeming EUTC minted to the sender within `flash_fee_window_blocks` (anti wash mint→dump loop).",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "flash_fee_window_blocks": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "max_dynamic_spread_bps": {
+              "description": "Dynamic redeem-spread headroom: up to this many bps are added to the redeem fee linearly as the daily window fills (0..=10_000 bps of utilization → 0..=max_dynamic_spread_bps added).",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "min_daily_mint_floor": {
+              "description": "Absolute floor on the daily mint allowance per collateral, in collateral micro-units. The percentage cap is relative to circulating supply, which is zero at protocol genesis — without this floor the first mints would be impossible (cap = supply × 0). Bootstrap-only in practice: the percentage cap overtakes it once supply grows.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "min_primary_ratio_bps": {
+              "description": "Mints revert while aggregate primary collateral ratio is below this (95% = 9_500). The solvency governor (anti-dump L3). The floor must sit BELOW the steady-state ratio: the 1.5% mint fee skims the EURC ratio to ~98.5% by design (the 0.5% USDC premium lifts that leg to ~104%), so a 100% floor would halt all normal operation. 95% only trips on abnormal drain — extraction beyond fees approaching 4% of backing.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "mint_fee_bps": {
+              "description": "Fee taken in the collateral used, on mint.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "oracle_min_interval_secs": {
+              "description": "Minimum seconds between oracle price updates (spec: 30s refresh).",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "oracle_stale_secs": {
+              "description": "Price older than this is treated as stale; mints fail closed.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "per_addr_redeem_cap_bps": {
+              "description": "Per-address share of supply redeemable per day (1% = 100). Bounds one whale's share of the daily window.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "rebalance_threshold_bps": {
+              "description": "USDC/EURC value differential triggering reserve rebalancing (5% = 500). RESERVED, not yet enforced (see ARCHITECTURE §5).",
+              "deprecated": true,
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "redeem_fee_bps": {
+              "description": "Fee taken in the collateral withdrawn, on redemption.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "usdc_premium_bps": {
+              "description": "USDC mint premium protecting against EUR/USD moves and DEX spread.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "ProtocolStatus": {
+          "description": "Kill-switch granularity. Mint and redemption pause independently so a collateral or oracle problem can halt issuance without trapping holders.",
+          "type": "object",
+          "required": [
+            "mint_paused",
+            "redeem_paused"
+          ],
+          "properties": {
+            "mint_paused": {
+              "type": "boolean"
+            },
+            "redeem_paused": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "state": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "StateResponse",
+      "type": "object",
+      "required": [
+        "collateral",
+        "params",
+        "redeem_window_day",
+        "redeemed_today",
+        "status"
+      ],
+      "properties": {
+        "collateral": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": [
+              {
+                "$ref": "#/definitions/CollateralType"
+              },
+              {
+                "$ref": "#/definitions/CollateralState"
+              }
+            ],
+            "maxItems": 2,
+            "minItems": 2
+          }
+        },
+        "params": {
+          "$ref": "#/definitions/Params"
+        },
+        "redeem_window_day": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "redeemed_today": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "status": {
+          "$ref": "#/definitions/ProtocolStatus"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "CollateralState": {
+          "description": "Per-collateral accounting layer. The spec requires these to stay independently verifiable, never collapsed into one balance.",
+          "type": "object",
+          "required": [
+            "collateral_returned",
+            "eutc_minted",
+            "fees_collected",
+            "primary_balance"
+          ],
+          "properties": {
+            "collateral_returned": {
+              "description": "Lifetime collateral returned to redeemers.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                }
+              ]
+            },
+            "eutc_minted": {
+              "description": "EUTC minted against this collateral type, gross of premiums.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                }
+              ]
+            },
+            "fees_collected": {
+              "description": "Fees routed to the secondary reserve from this collateral type.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                }
+              ]
+            },
+            "primary_balance": {
+              "description": "Collateral currently custodied by the module (primary collateral).",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "CollateralType": {
+          "description": "Collateral types accepted for EUTC minting (spec: EURC primary at 1:1, USDC with a 0.5% premium).",
+          "type": "string",
+          "enum": [
+            "eurc",
+            "usdc"
+          ]
+        },
+        "Params": {
+          "description": "Protocol parameters. Fee/cap values are in basis points (1.5% = 150).",
+          "type": "object",
+          "required": [
+            "daily_mint_cap_bps",
+            "daily_redeem_cap_bps",
+            "flash_fee_bps",
+            "flash_fee_window_blocks",
+            "max_dynamic_spread_bps",
+            "min_daily_mint_floor",
+            "min_primary_ratio_bps",
+            "mint_fee_bps",
+            "oracle_min_interval_secs",
+            "oracle_stale_secs",
+            "per_addr_redeem_cap_bps",
+            "rebalance_threshold_bps",
+            "redeem_fee_bps",
+            "usdc_premium_bps"
+          ],
+          "properties": {
+            "daily_mint_cap_bps": {
+              "description": "Maximum new supply mintable per day, per collateral (20% = 2000). Bounds same-day mint→dump velocity.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "daily_redeem_cap_bps": {
+              "description": "Maximum share of total EUTC supply redeemable per day (10% = 1000).",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "flash_fee_bps": {
+              "description": "Extra fee applied when redeeming EUTC minted to the sender within `flash_fee_window_blocks` (anti wash mint→dump loop).",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "flash_fee_window_blocks": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "max_dynamic_spread_bps": {
+              "description": "Dynamic redeem-spread headroom: up to this many bps are added to the redeem fee linearly as the daily window fills (0..=10_000 bps of utilization → 0..=max_dynamic_spread_bps added).",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "min_daily_mint_floor": {
+              "description": "Absolute floor on the daily mint allowance per collateral, in collateral micro-units. The percentage cap is relative to circulating supply, which is zero at protocol genesis — without this floor the first mints would be impossible (cap = supply × 0). Bootstrap-only in practice: the percentage cap overtakes it once supply grows.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "min_primary_ratio_bps": {
+              "description": "Mints revert while aggregate primary collateral ratio is below this (95% = 9_500). The solvency governor (anti-dump L3). The floor must sit BELOW the steady-state ratio: the 1.5% mint fee skims the EURC ratio to ~98.5% by design (the 0.5% USDC premium lifts that leg to ~104%), so a 100% floor would halt all normal operation. 95% only trips on abnormal drain — extraction beyond fees approaching 4% of backing.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "mint_fee_bps": {
+              "description": "Fee taken in the collateral used, on mint.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "oracle_min_interval_secs": {
+              "description": "Minimum seconds between oracle price updates (spec: 30s refresh).",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "oracle_stale_secs": {
+              "description": "Price older than this is treated as stale; mints fail closed.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "per_addr_redeem_cap_bps": {
+              "description": "Per-address share of supply redeemable per day (1% = 100). Bounds one whale's share of the daily window.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "rebalance_threshold_bps": {
+              "description": "USDC/EURC value differential triggering reserve rebalancing (5% = 500). RESERVED, not yet enforced (see ARCHITECTURE §5).",
+              "deprecated": true,
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "redeem_fee_bps": {
+              "description": "Fee taken in the collateral withdrawn, on redemption.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "usdc_premium_bps": {
+              "description": "USDC mint premium protecting against EUR/USD moves and DEX spread.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "ProtocolStatus": {
+          "description": "Kill-switch granularity. Mint and redemption pause independently so a collateral or oracle problem can halt issuance without trapping holders.",
+          "type": "object",
+          "required": [
+            "mint_paused",
+            "redeem_paused"
+          ],
+          "properties": {
+            "mint_paused": {
+              "type": "boolean"
+            },
+            "redeem_paused": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

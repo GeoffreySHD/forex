@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "oneOf": [
+    {
+      "description": "Current price plus freshness verdict under the configured staleness rule.",
+      "type": "object",
+      "required": [
+        "price"
+      ],
+      "properties": {
+        "price": {
+          "type": "object",
+          "required": [
+            "quote"
+          ],
+          "properties": {
+            "quote": {
+              "$ref": "#/definitions/CollateralType"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Aggregated oracle status for public diagnostics.",
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "definitions": {
+    "CollateralType": {
+      "description": "Collateral types accepted for EUTC minting (spec: EURC primary at 1:1, USDC with a 0.5% premium).",
+      "type": "string",
+      "enum": [
+        "eurc",
+        "usdc"
+      ]
+    }
+  }
+}

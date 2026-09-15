@@ -1,0 +1,7 @@
+# rustc ≥1.96 made rust-lld error on undefined symbols instead of emitting
+# them as imports. CosmWasm contracts REQUIRE the VM-provided imports
+# (db_read/db_next/addr_validate/...) to stay as imports, so restore the
+# lenient behavior for the wasm target only.
+# See https://github.com/gfx-rs/wgpu/issues/9382 for the upstream regression.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "link-arg=--import-undefined"]

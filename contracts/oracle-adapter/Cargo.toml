@@ -1,0 +1,18 @@
+[package]
+name = "csm-oracle-adapter"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Fiat price oracle adapter for the CSM (feeder-posted EUR/USD inputs with freshness rules)"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+cosmwasm-std = { workspace = true }
+cosmwasm-schema = { workspace = true }
+cw-storage-plus = { workspace = true }
+csm-std = { workspace = true }
+thiserror = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }

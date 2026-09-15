@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ClaimResponse",
+  "type": "object",
+  "required": [
+    "program_open",
+    "vested"
+  ],
+  "properties": {
+    "claim": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ClaimInfo"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "program_open": {
+      "type": "boolean"
+    },
+    "vested": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "ClaimInfo": {
+      "type": "object",
+      "required": [
+        "claimed",
+        "denom",
+        "end_block",
+        "start_block",
+        "total"
+      ],
+      "properties": {
+        "claimed": {
+          "type": "string"
+        },
+        "denom": {
+          "type": "string"
+        },
+        "end_block": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "start_block": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "total": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

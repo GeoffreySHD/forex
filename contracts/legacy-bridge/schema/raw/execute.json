@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExecuteMsg",
+  "oneOf": [
+    {
+      "description": "Admin switches the program open/closed (e.g. pending liquidity).",
+      "type": "object",
+      "required": [
+        "set_open"
+      ],
+      "properties": {
+        "set_open": {
+          "type": "object",
+          "required": [
+            "open"
+          ],
+          "properties": {
+            "open": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Admin updates caps (global per denom, per address).",
+      "type": "object",
+      "required": [
+        "set_caps"
+      ],
+      "properties": {
+        "set_caps": {
+          "type": "object",
+          "required": [
+            "global",
+            "per_address"
+          ],
+          "properties": {
+            "global": {
+              "type": "integer",
+              "format": "uint128",
+              "minimum": 0.0
+            },
+            "per_address": {
+              "type": "integer",
+              "format": "uint128",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Admin transfers program administration.",
+      "type": "object",
+      "required": [
+        "set_admin"
+      ],
+      "properties": {
+        "set_admin": {
+          "type": "object",
+          "required": [
+            "admin"
+          ],
+          "properties": {
+            "admin": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Convert attached native legacy coins into vesting claims. One denom per call; the attached funds must contain exactly one denom and the full amount converts.",
+      "type": "object",
+      "required": [
+        "convert"
+      ],
+      "properties": {
+        "convert": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Acknowledge vested progress on a recorded claim. The claim is a bookkeeping credit toward future collateralized-unit issuance; coin movement happens only in the CSM issuance step, never here.",
+      "type": "object",
+      "required": [
+        "claim"
+      ],
+      "properties": {
+        "claim": {
+          "type": "object",
+          "required": [
+            "denom"
+          ],
+          "properties": {
+            "denom": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

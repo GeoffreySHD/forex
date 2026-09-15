@@ -1,0 +1,175 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InstantiateMsg",
+  "type": "object",
+  "required": [
+    "admin",
+    "eutc_token",
+    "reserve",
+    "vault"
+  ],
+  "properties": {
+    "admin": {
+      "type": "string"
+    },
+    "eutc_token": {
+      "description": "cw20 address of EUTC; the deployer registers csm-core as minter.",
+      "type": "string"
+    },
+    "oracle": {
+      "description": "Feeder oracle adapter (fallback / override). Mints fail closed until wired when `oracle_mode` is `AdapterOnly`.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "oracle_mode": {
+      "description": "Price-source selection; defaults to `ConsensusPrimary` (chain oracle ballot rates via the terra wasmbinding).",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/OracleMode"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "params": {
+      "description": "Defaults to the spec values when omitted.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Params"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reserve": {
+      "description": "Secondary reserve contract receiving all fees.",
+      "type": "string"
+    },
+    "vault": {
+      "description": "Primary collateral custody contract.",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "OracleMode": {
+      "description": "Price-source selection. `ConsensusPrimary` consumes the chain oracle's slashing-backed ballot rates via the terra wasmbinding (`ExchangeRates` custom query) and falls back to the adapter contract on failure; `AdapterOnly` uses only the feeder adapter (used by tests and for quotes outside the ballot denom set).",
+      "type": "string",
+      "enum": [
+        "consensus_primary",
+        "adapter_only"
+      ]
+    },
+    "Params": {
+      "description": "Protocol parameters. Fee/cap values are in basis points (1.5% = 150).",
+      "type": "object",
+      "required": [
+        "daily_mint_cap_bps",
+        "daily_redeem_cap_bps",
+        "flash_fee_bps",
+        "flash_fee_window_blocks",
+        "max_dynamic_spread_bps",
+        "min_daily_mint_floor",
+        "min_primary_ratio_bps",
+        "mint_fee_bps",
+        "oracle_min_interval_secs",
+        "oracle_stale_secs",
+        "per_addr_redeem_cap_bps",
+        "rebalance_threshold_bps",
+        "redeem_fee_bps",
+        "usdc_premium_bps"
+      ],
+      "properties": {
+        "daily_mint_cap_bps": {
+          "description": "Maximum new supply mintable per day, per collateral (20% = 2000). Bounds same-day mint→dump velocity.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "daily_redeem_cap_bps": {
+          "description": "Maximum share of total EUTC supply redeemable per day (10% = 1000).",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "flash_fee_bps": {
+          "description": "Extra fee applied when redeeming EUTC minted to the sender within `flash_fee_window_blocks` (anti wash mint→dump loop).",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "flash_fee_window_blocks": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "max_dynamic_spread_bps": {
+          "description": "Dynamic redeem-spread headroom: up to this many bps are added to the redeem fee linearly as the daily window fills (0..=10_000 bps of utilization → 0..=max_dynamic_spread_bps added).",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "min_daily_mint_floor": {
+          "description": "Absolute floor on the daily mint allowance per collateral, in collateral micro-units. The percentage cap is relative to circulating supply, which is zero at protocol genesis — without this floor the first mints would be impossible (cap = supply × 0). Bootstrap-only in practice: the percentage cap overtakes it once supply grows.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "min_primary_ratio_bps": {
+          "description": "Mints revert while aggregate primary collateral ratio is below this (95% = 9_500). The solvency governor (anti-dump L3). The floor must sit BELOW the steady-state ratio: the 1.5% mint fee skims the EURC ratio to ~98.5% by design (the 0.5% USDC premium lifts that leg to ~104%), so a 100% floor would halt all normal operation. 95% only trips on abnormal drain — extraction beyond fees approaching 4% of backing.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "mint_fee_bps": {
+          "description": "Fee taken in the collateral used, on mint.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "oracle_min_interval_secs": {
+          "description": "Minimum seconds between oracle price updates (spec: 30s refresh).",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "oracle_stale_secs": {
+          "description": "Price older than this is treated as stale; mints fail closed.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "per_addr_redeem_cap_bps": {
+          "description": "Per-address share of supply redeemable per day (1% = 100). Bounds one whale's share of the daily window.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "rebalance_threshold_bps": {
+          "description": "USDC/EURC value differential triggering reserve rebalancing (5% = 500). RESERVED, not yet enforced (see ARCHITECTURE §5).",
+          "deprecated": true,
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "redeem_fee_bps": {
+          "description": "Fee taken in the collateral withdrawn, on redemption.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "usdc_premium_bps": {
+          "description": "USDC mint premium protecting against EUR/USD moves and DEX spread.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

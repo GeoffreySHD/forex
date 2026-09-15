@@ -1,0 +1,340 @@
+{
+  "contract_name": "legacy-bridge",
+  "contract_version": "0.1.0",
+  "idl_version": "1.0.0",
+  "instantiate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "InstantiateMsg",
+    "type": "object",
+    "required": [
+      "admin",
+      "open",
+      "sink_address",
+      "vesting_days"
+    ],
+    "properties": {
+      "admin": {
+        "type": "string"
+      },
+      "open": {
+        "description": "Program switch: conversions are rejected while closed.",
+        "type": "boolean"
+      },
+      "sink_address": {
+        "description": "Where converted legacy units are delivered (e.g. the community module account, or the CSM reserve for disposition). The coins are not recoverable from the bridge afterwards — delivery is a plain bank send to this address.",
+        "type": "string"
+      },
+      "vesting_days": {
+        "description": "Per-claim linear vesting period in days (default 90).",
+        "type": "integer",
+        "format": "uint64",
+        "minimum": 0.0
+      }
+    },
+    "additionalProperties": false
+  },
+  "execute": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ExecuteMsg",
+    "oneOf": [
+      {
+        "description": "Admin switches the program open/closed (e.g. pending liquidity).",
+        "type": "object",
+        "required": [
+          "set_open"
+        ],
+        "properties": {
+          "set_open": {
+            "type": "object",
+            "required": [
+              "open"
+            ],
+            "properties": {
+              "open": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin updates caps (global per denom, per address).",
+        "type": "object",
+        "required": [
+          "set_caps"
+        ],
+        "properties": {
+          "set_caps": {
+            "type": "object",
+            "required": [
+              "global",
+              "per_address"
+            ],
+            "properties": {
+              "global": {
+                "type": "integer",
+                "format": "uint128",
+                "minimum": 0.0
+              },
+              "per_address": {
+                "type": "integer",
+                "format": "uint128",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin transfers program administration.",
+        "type": "object",
+        "required": [
+          "set_admin"
+        ],
+        "properties": {
+          "set_admin": {
+            "type": "object",
+            "required": [
+              "admin"
+            ],
+            "properties": {
+              "admin": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Convert attached native legacy coins into vesting claims. One denom per call; the attached funds must contain exactly one denom and the full amount converts.",
+        "type": "object",
+        "required": [
+          "convert"
+        ],
+        "properties": {
+          "convert": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Acknowledge vested progress on a recorded claim. The claim is a bookkeeping credit toward future collateralized-unit issuance; coin movement happens only in the CSM issuance step, never here.",
+        "type": "object",
+        "required": [
+          "claim"
+        ],
+        "properties": {
+          "claim": {
+            "type": "object",
+            "required": [
+              "denom"
+            ],
+            "properties": {
+              "denom": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ]
+  },
+  "query": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "QueryMsg",
+    "oneOf": [
+      {
+        "description": "Program configuration.",
+        "type": "object",
+        "required": [
+          "config"
+        ],
+        "properties": {
+          "config": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "A holder's claim (if any), vested amount, and program state.",
+        "type": "object",
+        "required": [
+          "claim"
+        ],
+        "properties": {
+          "claim": {
+            "type": "object",
+            "required": [
+              "address",
+              "denom"
+            ],
+            "properties": {
+              "address": {
+                "type": "string"
+              },
+              "denom": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Lifetime converted totals for a denom.",
+        "type": "object",
+        "required": [
+          "converted_totals"
+        ],
+        "properties": {
+          "converted_totals": {
+            "type": "object",
+            "required": [
+              "denom"
+            ],
+            "properties": {
+              "denom": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ]
+  },
+  "migrate": null,
+  "sudo": null,
+  "responses": {
+    "claim": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ClaimResponse",
+      "type": "object",
+      "required": [
+        "program_open",
+        "vested"
+      ],
+      "properties": {
+        "claim": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ClaimInfo"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "program_open": {
+          "type": "boolean"
+        },
+        "vested": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "ClaimInfo": {
+          "type": "object",
+          "required": [
+            "claimed",
+            "denom",
+            "end_block",
+            "start_block",
+            "total"
+          ],
+          "properties": {
+            "claimed": {
+              "type": "string"
+            },
+            "denom": {
+              "type": "string"
+            },
+            "end_block": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "start_block": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "total": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "config": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ConfigResponse",
+      "type": "object",
+      "required": [
+        "admin",
+        "global_cap",
+        "open",
+        "per_address_cap",
+        "sink_address",
+        "vesting_days"
+      ],
+      "properties": {
+        "admin": {
+          "type": "string"
+        },
+        "global_cap": {
+          "type": "string"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "per_address_cap": {
+          "type": "string"
+        },
+        "sink_address": {
+          "type": "string"
+        },
+        "vesting_days": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "converted_totals": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "TotalsResponse",
+      "type": "object",
+      "required": [
+        "converted",
+        "denom"
+      ],
+      "properties": {
+        "converted": {
+          "type": "string"
+        },
+        "denom": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

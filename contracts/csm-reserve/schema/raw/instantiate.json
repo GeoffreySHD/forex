@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InstantiateMsg",
+  "type": "object",
+  "required": [
+    "admin",
+    "core",
+    "lunc_denom",
+    "vault"
+  ],
+  "properties": {
+    "admin": {
+      "type": "string"
+    },
+    "core": {
+      "description": "The core module; its fee sends are accepted as deposits.",
+      "type": "string"
+    },
+    "lunc_denom": {
+      "description": "Native LUNC denom bought by buybacks and held in the vault.",
+      "type": "string"
+    },
+    "vault": {
+      "description": "The primary collateral vault; redemption fees arrive through it.",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

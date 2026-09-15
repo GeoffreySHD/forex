@@ -1,0 +1,260 @@
+{
+  "contract_name": "csm-oracle-adapter",
+  "contract_version": "0.1.0",
+  "idl_version": "1.0.0",
+  "instantiate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "InstantiateMsg",
+    "type": "object",
+    "required": [
+      "admin",
+      "stale_secs"
+    ],
+    "properties": {
+      "admin": {
+        "type": "string"
+      },
+      "stale_secs": {
+        "description": "Price older than this many seconds is reported stale; mints fail closed.",
+        "type": "integer",
+        "format": "uint64",
+        "minimum": 0.0
+      }
+    },
+    "additionalProperties": false
+  },
+  "execute": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ExecuteMsg",
+    "oneOf": [
+      {
+        "description": "Feeder posts a fresh price observation.",
+        "type": "object",
+        "required": [
+          "post_price"
+        ],
+        "properties": {
+          "post_price": {
+            "type": "object",
+            "required": [
+              "quote",
+              "units_per_eutc"
+            ],
+            "properties": {
+              "quote": {
+                "$ref": "#/definitions/CollateralType"
+              },
+              "units_per_eutc": {
+                "$ref": "#/definitions/Decimal"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin: authorize or revoke a feeder address.",
+        "type": "object",
+        "required": [
+          "set_feeder"
+        ],
+        "properties": {
+          "set_feeder": {
+            "type": "object",
+            "required": [
+              "authorized",
+              "feeder"
+            ],
+            "properties": {
+              "authorized": {
+                "type": "boolean"
+              },
+              "feeder": {
+                "$ref": "#/definitions/Addr"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "Addr": {
+        "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+        "type": "string"
+      },
+      "CollateralType": {
+        "description": "Collateral types accepted for EUTC minting (spec: EURC primary at 1:1, USDC with a 0.5% premium).",
+        "type": "string",
+        "enum": [
+          "eurc",
+          "usdc"
+        ]
+      },
+      "Decimal": {
+        "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+        "type": "string"
+      }
+    }
+  },
+  "query": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "QueryMsg",
+    "oneOf": [
+      {
+        "description": "Current price plus freshness verdict under the configured staleness rule.",
+        "type": "object",
+        "required": [
+          "price"
+        ],
+        "properties": {
+          "price": {
+            "type": "object",
+            "required": [
+              "quote"
+            ],
+            "properties": {
+              "quote": {
+                "$ref": "#/definitions/CollateralType"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Aggregated oracle status for public diagnostics.",
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "CollateralType": {
+        "description": "Collateral types accepted for EUTC minting (spec: EURC primary at 1:1, USDC with a 0.5% premium).",
+        "type": "string",
+        "enum": [
+          "eurc",
+          "usdc"
+        ]
+      }
+    }
+  },
+  "migrate": null,
+  "sudo": null,
+  "responses": {
+    "price": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OraclePrice",
+      "description": "A posted fiat price: units of the quote currency per 1 EUTC. For EURC this is always 1 (both are euro-denominated); for USDC it is the EUR/USD market rate (USD per EUR).",
+      "type": "object",
+      "required": [
+        "quote",
+        "units_per_eutc",
+        "updated_at"
+      ],
+      "properties": {
+        "quote": {
+          "$ref": "#/definitions/CollateralType"
+        },
+        "units_per_eutc": {
+          "$ref": "#/definitions/Decimal"
+        },
+        "updated_at": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "CollateralType": {
+          "description": "Collateral types accepted for EUTC minting (spec: EURC primary at 1:1, USDC with a 0.5% premium).",
+          "type": "string",
+          "enum": [
+            "eurc",
+            "usdc"
+          ]
+        },
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        }
+      }
+    },
+    "status": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OracleStatusResponse",
+      "type": "object",
+      "required": [
+        "all_fresh",
+        "healthy",
+        "prices"
+      ],
+      "properties": {
+        "all_fresh": {
+          "description": "True when any quote is within the stale window.",
+          "type": "boolean"
+        },
+        "healthy": {
+          "type": "boolean"
+        },
+        "prices": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/OraclePrice"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "CollateralType": {
+          "description": "Collateral types accepted for EUTC minting (spec: EURC primary at 1:1, USDC with a 0.5% premium).",
+          "type": "string",
+          "enum": [
+            "eurc",
+            "usdc"
+          ]
+        },
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "OraclePrice": {
+          "description": "A posted fiat price: units of the quote currency per 1 EUTC. For EURC this is always 1 (both are euro-denominated); for USDC it is the EUR/USD market rate (USD per EUR).",
+          "type": "object",
+          "required": [
+            "quote",
+            "units_per_eutc",
+            "updated_at"
+          ],
+          "properties": {
+            "quote": {
+              "$ref": "#/definitions/CollateralType"
+            },
+            "units_per_eutc": {
+              "$ref": "#/definitions/Decimal"
+            },
+            "updated_at": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  }
+}

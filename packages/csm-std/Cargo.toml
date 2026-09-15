@@ -1,0 +1,13 @@
+[package]
+name = "csm-std"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Shared types and cross-contract interfaces for the Terra Classic Collateralized Stablecoin Module (EUTC)"
+
+[dependencies]
+cosmwasm-std = { workspace = true }
+cosmwasm-schema = { workspace = true }
+cw20 = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }

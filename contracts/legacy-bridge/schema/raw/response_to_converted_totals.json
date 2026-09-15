@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TotalsResponse",
+  "type": "object",
+  "required": [
+    "converted",
+    "denom"
+  ],
+  "properties": {
+    "converted": {
+      "type": "string"
+    },
+    "denom": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

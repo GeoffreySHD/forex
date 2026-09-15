@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ConfigResponse",
+  "type": "object",
+  "required": [
+    "admin",
+    "collateral_tokens",
+    "eutc_token",
+    "oracle_mode",
+    "reserve",
+    "vault"
+  ],
+  "properties": {
+    "admin": {
+      "type": "string"
+    },
+    "collateral_tokens": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": [
+          {
+            "$ref": "#/definitions/CollateralType"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "maxItems": 2,
+        "minItems": 2
+      }
+    },
+    "eutc_token": {
+      "type": "string"
+    },
+    "oracle": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "oracle_mode": {
+      "$ref": "#/definitions/OracleMode"
+    },
+    "reserve": {
+      "type": "string"
+    },
+    "vault": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "CollateralType": {
+      "description": "Collateral types accepted for EUTC minting (spec: EURC primary at 1:1, USDC with a 0.5% premium).",
+      "type": "string",
+      "enum": [
+        "eurc",
+        "usdc"
+      ]
+    },
+    "OracleMode": {
+      "description": "Price-source selection. `ConsensusPrimary` consumes the chain oracle's slashing-backed ballot rates via the terra wasmbinding (`ExchangeRates` custom query) and falls back to the adapter contract on failure; `AdapterOnly` uses only the feeder adapter (used by tests and for quotes outside the ballot denom set).",
+      "type": "string",
+      "enum": [
+        "consensus_primary",
+        "adapter_only"
+      ]
+    }
+  }
+}
