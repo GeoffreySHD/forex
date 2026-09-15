@@ -1,5 +1,7 @@
 # forex — EUTC / Collateralized Unit Module (reference implementation)
 
+[![CI](https://github.com/Semence2Porc/forex/actions/workflows/ci.yml/badge.svg)](https://github.com/Semence2Porc/forex/actions/workflows/ci.yml)
+
 A working CosmWasm implementation of the **Euro Collateral Unit (working name EUTC-C)** and its **Collateralized Unit Module (CSM)** — units minted *against* user-deposited collateral (EURC/USDC) and withdrawable *from* it at oracle reference rates — following the [Terra Classic Forex Protocol](https://github.com/Terra-Classic-money-Website/Terra-Classic-Docs) direction accepted via Proposal 12209. **Greenfield by design** — as of 2026-09 there is no upstream CSM/EUTC code anywhere; this workspace is the first implementation. Public-facing wording follows [docs/TERMINOLOGY.md](./docs/TERMINOLOGY.md) (mechanism descriptions, no value promises).
 
 > ⚠️ **PoC, not production.** Unaudited, not deployed, no mainnet funds. See [docs/ARCHITECTURE.md §5](./docs/ARCHITECTURE.md) for the known-gaps list.

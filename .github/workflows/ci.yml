@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Unit + integration tests (28, cw-multi-test)
+        run: cargo test --workspace --locked
+
+      - name: Clippy (deny warnings)
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: Install wabt (wasm-objdump)
+        run: sudo apt-get update && sudo apt-get install -y wabt
+
+      - name: Wasm release builds (all five contracts, --lib)
+        run: cargo build --release --locked --target wasm32-unknown-unknown --lib -p csm-core -p csm-vault -p csm-reserve -p csm-oracle-adapter -p legacy-bridge
+
+      - name: Verify entry-point exports (instantiate/execute/query)
+        run: |
+          set -euo pipefail
+          for w in csm_core csm_vault csm_reserve csm_oracle_adapter legacy_bridge; do
+            f="target/wasm32-unknown-unknown/release/${w}.wasm"
+            test -f "$f" || { echo "missing artifact: $f"; exit 1; }
+            for exp in instantiate execute query; do
+              if ! wasm-objdump -x "$f" | grep -q "(${exp} (func"; then
+                echo "missing export '$exp' in $f"; exit 1
+              fi
+            done
+            echo "OK: $w exports instantiate/execute/query"
+          done
