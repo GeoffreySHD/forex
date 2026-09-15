@@ -17,7 +17,7 @@ There is no trust-minimized corridor between ICP and Cosmos chains today: ck tok
 
 ## Who we are
 
-We're the team behind Terra Classic's FOREX/CSM effort (community proposal 12209 — a collateralized euro-referenced token program, fully open source: six CosmWasm contracts with a public doc set and terminology/disclosure policy), and the author of **ckLUNC** — a chain-key-styled ICRC-1 twin of LUNC on ICP, in development, which is what got us deep into your ck stack.
+We're the team behind Terra Classic's FOREX/CSM effort (community proposal 12209 — a collateralized euro-referenced token program, fully open source: six CosmWasm contracts with a public doc set and terminology/disclosure policy), and the author of **ckLUNC** — a chain-key-styled ICRC-1 twin of LUNC on ICP, in development, which is what got us deep into your ck stack. We also maintain **lunc-skills** — the first agent skill set for any Cosmos SDK chain, in the same format as dfinity/icskills — and **lunc-mcp**, an MCP server exposing verified Terra Classic tooling; agent-facing developer experience is our home turf.
 
 We are not here to pitch Terra Classic's size. We're here because the *pattern* we need — "prove, to a foreign chain, that a canister holds/burns X" — is generic, and ICP is the only ecosystem whose trust model makes it worth doing: **no key committee, no multisig, no bridge operator to hack.**
 
@@ -84,4 +84,4 @@ If the primitive is not on the roadmap, we can still build a corridor with today
 
 ---
 
-*Draft notes (remove before posting): author = [you]; links to include: forex repo (docs/RESEARCH-CONTEXT.md open question #11), ckLUNC repo, the two Cosmos bridge incidents if context helps. Post in "Developers / Chain Fusion". Cross-link the follow-up discussion to the LUNC community forum so both sides see the same thread.*
+*Draft notes (remove before posting): author = [you]. Repos to link in the post: CSM — github.com/Semence2Porc/forex (see docs/RESEARCH-CONTEXT.md, open question #11) · ckLUNC — github.com/Semence2Porc/cklunc · skills — github.com/Semence2Porc/lunc-skills · MCP — github.com/Semence2Porc/lunc-mcp. Proposal 12209 discussion: https://discourse.luncgoblins.com/t/lunc-forex-genesis-eutc-repeg/290. Post in "Developers / Chain Fusion"; cross-link to the LUNC community forum so both sides see the same thread.*
